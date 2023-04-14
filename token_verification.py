@@ -4,5 +4,3 @@ from tinkoff.invest import Client
 def token_ver():
     with Client(token) as client:
         r = client.instruments.find_instrument(query="Тинькофф Вечный портфель RUB")
-        for i in r.instruments:
-            print(i)
