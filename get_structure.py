@@ -1,7 +1,8 @@
 import requests
 
+
 # Функция выполнения запроса текущей структуры фонда
-def get_structure(ticker : str) -> dict:
+def get_structure(ticker: str) -> dict:
     headers = {
         'Content-Type': 'application/x-www-form-urlencoded',
         'Accept': '*/*',
