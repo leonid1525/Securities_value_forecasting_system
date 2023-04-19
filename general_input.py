@@ -2,8 +2,15 @@ import sys
 from tkinter import *
 import webbrowser
 import datetime
+import pandas as pd
 
 from token_verification import token_ver
+from filling_in_the_gaps import filling_in_the_gaps
+from download_history_target import download_history_target
+
+import warnings
+
+warnings.filterwarnings("ignore")
 
 
 # Функция открытия ссылки в браузере
@@ -12,11 +19,13 @@ def callback(url):
 
 
 # функция получения токена в виде текста, для последующей аутентификации
-def input_token():
-    token = txt0.get()
+def input_data():
     global token
+    global days
+    token = txt0.get()
+    days = txt1.get()
+    days = int(days)
     wnd.destroy()
-    return token
 
 
 # Проверяем текущее время. Если в данный момент не работает московская биржа, то работа приложения не будет продолжена.
@@ -37,10 +46,7 @@ if ((now.hour < 9 or now.hour >= 18) and now.isoweekday() < 5) or (
 # Создаем окно с текстом и кнопками для приема токена
 wnd = Tk()
 wnd.title("Securities_value_forecasting_system")
-wnd.attributes("-fullscreen", True)
-
-btn0 = Button(wnd, text="X", font=("Times New Roman", 10), command=wnd.destroy, background="red", justify="center")
-btn0.place(x=0, y=0, width=50)
+wnd.geometry("1400x400")
 
 lbl0 = Label(wnd, text='Для использования данной системы вам необходимо быть клиентом "Тинькофф банк"',
              font=("Times New Roman", 14))
@@ -60,8 +66,14 @@ lbl3.place(x=100, y=175)
 txt0 = Entry(wnd, width=130, font=("Times New Roman", 14))
 txt0.place(x=100, y=200)
 
-btn1 = Button(wnd, text='OK', font=("Times New Roman", 10), command=input_token, justify="center", width=5, height=1)
-btn1.place(x=1280, y=200)
+btn1 = Button(wnd, text='OK', font=("Times New Roman", 14), command=input_data, justify="center", width=40, height=1)
+btn1.place(x=500, y=350)
+
+lbl4 = Label(wnd, text='Введите целое число дней истории ниже', font=("Times New Roman", 14))
+lbl4.place(x=100, y=250)
+
+txt1 = Entry(wnd, width=50, font=("Times New Roman", 14))
+txt1.place(x=100, y=300)
 
 wnd.mainloop()
 
@@ -77,3 +89,29 @@ except:
     btn_error = Button(wnd_error, text="OK", font=("Times New Roman", 10), command=wnd_error.destroy, width=10,
                        justify="center")
     btn_error.place(x=90, y=50)
+
+# Загружаем данные.
+history_feature = filling_in_the_gaps(token, days)
+
+# Загружаем таргеты для исторических данных.
+history_target = download_history_target(token, days)
+
+# Соединяем данные, чтобы они полностью сходились по датам и размерам.
+data = pd.merge(history_feature, history_target, on='time', how='inner')
+
+# Создаем отдельную выборку из признаков.
+X = data.drop(['closing_data'], axis=1)
+
+# Переводим колонку time в тип данных datetime.
+X['time'] = pd.to_datetime(X['time'])
+
+# Создаем новые признаки из времени.
+X['minute'] = X['time'].dt.minute
+X['hour'] = X['time'].dt.hour
+X['day_of_week'] = X['time'].dt.day_of_week
+
+# Удаляем время из признаков.
+X=X.drop(['time'], axis=1)
+
+# Выборка таргетов отдельно.
+Y = data['closing_data']

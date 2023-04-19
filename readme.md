@@ -16,12 +16,11 @@
 ## Последние изменения
 
 <ul>
-   <li>Добавлена загрузка исторических данных</li>
-   <li>Добавлена функция заполнения пропусков в исторических данных</li>
+   <li>Добавление загрузки таргетов к историческим данным и заполнение пропусков в таргетах</li>
+   <li>Добавление прогресс-баров к загрузкам</li>
 </ul>
 
 ## Используемые внешние библиотеки
 
-![TINKOFF](https://img.shields.io/badge/TINKOFF-0.1.1-090909??style=flat-square&logo=TINKOFF)
-![TINKOFF-INVESTMENTS](https://img.shields.io/badge/TINKOFF_INVESTMENTS-0.2.0b53-090909??style=flat-square&logo=TINKOFF_INVESTMENTS)
 ![TINKOFF-INVEST](https://img.shields.io/badge/TINKOFF_INVEST-0.1.1-090909??style=flat-square&logo=TINKOFF-INVEST)
+![PANDAS](https://img.shields.io/badge/PANDAS-1.5.3-090909??style=flat-square&logo=PANDAS)

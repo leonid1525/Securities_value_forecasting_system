@@ -1,12 +1,23 @@
 import pandas as pd
 import datetime
-from tinkoff.invest import *
 import time
 from download_history_for_1_day import download_history_for_1_day
+from tkinter.ttk import *
+from tkinter import *
+
+import warnings
+
+warnings.filterwarnings("ignore")
 
 
 # Функция загрузки исторических данных, для обучения модели
-def download_history_data(token):
+def download_history_data(token: str, days: int):
+    # Создаем прогрессбар.
+    tk = Tk()
+    tk.title("Загрузка исторических данных")
+    progress = Progressbar(tk, orient=HORIZONTAL, maximum=days, value=0, length=500, mode='determinate')
+    progress.grid(column=1, row=0)
+
     # Записываем текущее время и дату, после чего округляем до даты
     st = datetime.datetime.now()
     st = datetime.datetime(st.date().year, st.date().month, st.date().day, 0, 0, 0, 0)
@@ -26,14 +37,23 @@ def download_history_data(token):
                                      '9': [-199]})
 
     # По каждому дню в году собираем данные и присоединяем к таблице.
-    for x in range(1, 366):
+    for x in range(1, days):
+
+        # Обновляем прогрессбар.
+        progress['value'] = progress['value'] + 1
+        tk.update()
 
         # При каждом 25 дне, делаем минутный перерыв, в связи с лимитной политикой запросов.
-        if x % 25 == 0:
+        if x % 20 == 0:
             time.sleep(60)
 
+        # Загружаем данные по каждому дню и присоединяем их.
         new_day = download_history_for_1_day(st=st, day=x, token=token)
         firsty_data = (pd.concat([firsty_data, new_day], axis=0)).reset_index(drop=True)
         print(x)
+
+    # Убираем прогрессбар.
+    progress.pack()
+    tk.destroy()
 
     return firsty_data
