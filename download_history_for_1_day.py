@@ -11,24 +11,26 @@ def download_history_for_1_day(st: datetime.datetime, day: int, token: str) -> p
     times = pd.DataFrame(pd.date_range(start=st - datetime.timedelta(days=1), end=st, freq="T", tz="UTC"),
                          columns=["time"])
 
+    # Делаем запрос на текущую структуру фонда.
+    structure = get_structure('TRUR')['items']
+
     for y in range(10):
         with Client(token) as client:
 
             # Проверяем и заменяем типы ценных бумаг, так как в библиотеке tinkoff.invest немного по другому пишутся типы ценных бумаг.
-            m = get_structure('TRUR')['items'][y]
-            if m['type'] == 'Stock':
-                m['type'] = 'share'
-            elif m['type'] == 'Currency':
-                m['type'] = 'currency'
-            elif m['type'] == 'Bond':
-                m['type'] = 'bond'
+            if structure[y]['type'] == 'Stock':
+                structure[y]['type'] = 'share'
+            elif structure[y]['type'] == 'Currency':
+                structure[y]['type'] = 'currency'
+            elif structure[y]['type'] == 'Bond':
+                structure[y]['type'] = 'bond'
 
             # Выполняем поиск того что нужно среди всех инструментов по тикерам.
-            c = client.instruments.find_instrument(query=m['ticker'])
+            c = client.instruments.find_instrument(query=structure[y]['ticker'])
 
             # Итерируемся по найденным инструментам, и проверяем на соответствие того что есть в БПИФ на самом деле.
             for x in range(len(c.instruments)):
-                if c.instruments[x].instrument_type == m['type'] and c.instruments[x].name == m['name'] and \
+                if c.instruments[x].instrument_type == structure[y]['type'] and c.instruments[x].name == structure[y]['name'] and \
                         c.instruments[x].class_code != 'SMAL':
 
                     # Загружаем общие данные по инструменту.

@@ -121,4 +121,7 @@ def download_history_target(token: str, days: int) -> pd.DataFrame:
     progress.pack()
     tk.destroy()
 
+    # Переводим колонку в нужный тип данных.
+    firsty_data['time'] = pd.to_datetime(firsty_data['time'])
+
     return firsty_data

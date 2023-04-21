@@ -7,6 +7,7 @@ import pandas as pd
 from token_verification import token_ver
 from filling_in_the_gaps import filling_in_the_gaps
 from download_history_target import download_history_target
+from learn_model import learn_model
 
 import warnings
 
@@ -57,7 +58,7 @@ lbl1 = Label(wnd, text='Перед использованием системы �
 lbl1.place(x=100, y=125)
 
 lbl2 = Label(wnd, text='https://tinkoff.github.io/investAPI/token/', font=("Times New Roman", 14), foreground="blue")
-lbl2.place(x=743, y=125)
+lbl2.place(x=770, y=125)
 lbl2.bind("<Button-1>", lambda e: callback("https://tinkoff.github.io/investAPI/token/"))
 
 lbl3 = Label(wnd, text='Введите ваш токен ниже', font=("Times New Roman", 14))
@@ -115,3 +116,5 @@ X=X.drop(['time'], axis=1)
 
 # Выборка таргетов отдельно.
 Y = data['closing_data']
+
+model=learn_model(X, Y)
