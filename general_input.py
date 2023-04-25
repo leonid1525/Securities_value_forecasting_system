@@ -1,35 +1,16 @@
 import sys
 from tkinter import *
-import webbrowser
 import datetime
 import pandas as pd
-
-from token_verification import token_ver
-from filling_in_the_gaps import filling_in_the_gaps
-from download_history_target import download_history_target
-from learn_model import learn_model
-
+import os.path
 import warnings
+
+from learn_model import learn_model
+from get_data import *
 
 warnings.filterwarnings("ignore")
 
-
-# Функция открытия ссылки в браузере
-def callback(url):
-    webbrowser.open_new(url)
-
-
-# функция получения токена в виде текста, для последующей аутентификации
-def input_data():
-    global token
-    global days
-    token = txt0.get()
-    days = txt1.get()
-    days = int(days)
-    wnd.destroy()
-
-
-# Проверяем текущее время. Если в данный момент не работает московская биржа, то работа приложения не будет продолжена.
+# Проверяем текущее время. Если в данный момент не работает московская биржа, то появится соответствующее окно и работа приложения не будет продолжена.
 now = datetime.datetime.now()
 if ((now.hour < 9 or now.hour >= 18) and now.isoweekday() < 5) or (
         now.isoweekday() == 5 and now.time() > datetime.time(16, 45, 0, 0)):
@@ -44,77 +25,58 @@ if ((now.hour < 9 or now.hour >= 18) and now.isoweekday() < 5) or (
     wnd_closing.mainloop()
     sys.exit()
 
-# Создаем окно с текстом и кнопками для приема токена
-wnd = Tk()
-wnd.title("Securities_value_forecasting_system")
-wnd.geometry("1400x400")
+# Получаем токен.
+token, days = get_token()
 
-lbl0 = Label(wnd, text='Для использования данной системы вам необходимо быть клиентом "Тинькофф банк"',
-             font=("Times New Roman", 14))
-lbl0.place(x=100, y=100)
+# Проверяем переменную, так как необязательно указывать число дней, если данные уже были загружены сегодня.
+if days.isdigit():
+    days = int(days)
 
-lbl1 = Label(wnd, text='Перед использованием системы пожалуйста получите токен согласно инструкции',
-             font=("Times New Roman", 14))
-lbl1.place(x=100, y=125)
+# Проверяем наличие файла с загруженными файлами.
+if os.path.isfile('safe_data.csv'):
 
-lbl2 = Label(wnd, text='https://tinkoff.github.io/investAPI/token/', font=("Times New Roman", 14), foreground="blue")
-lbl2.place(x=770, y=125)
-lbl2.bind("<Button-1>", lambda e: callback("https://tinkoff.github.io/investAPI/token/"))
+    # Читаем файл, чтобы потом проверить его на корректность и актульность.
+    data = pd.read_csv('safe_data.csv', index_col=False)
 
-lbl3 = Label(wnd, text='Введите ваш токен ниже', font=("Times New Roman", 14))
-lbl3.place(x=100, y=175)
+    # Проверяем чтобы первым столбцом шло время и дата.
+    if data.columns[0] == 'time':
 
-txt0 = Entry(wnd, width=130, font=("Times New Roman", 14))
-txt0.place(x=100, y=200)
+        # Проверяем чтобы последняя дата и время были вчера.
+        data['time'] = pd.to_datetime(data['time'])
+        data = data.sort_values(by='time', ascending=True)
+        tail_value = data.shape[0] - 1
+        tail_date = datetime.datetime.now().date() - datetime.timedelta(days=1)
+        if data.loc[tail_value, 'time'] < tail_date:
+            # Если дата и время более старые чем нужно, то загружаем актуальные данные.
+            data = get_data()
+    else:
 
-btn1 = Button(wnd, text='OK', font=("Times New Roman", 14), command=input_data, justify="center", width=40, height=1)
-btn1.place(x=500, y=350)
+        # Если файл некорректный, то загружаем актуальные данные.
+        data = get_data(token, days)
 
-lbl4 = Label(wnd, text='Введите целое число дней истории ниже', font=("Times New Roman", 14))
-lbl4.place(x=100, y=250)
+else:
 
-txt1 = Entry(wnd, width=50, font=("Times New Roman", 14))
-txt1.place(x=100, y=300)
+    # Если файла нет, то загружаем актуальные данные.
+    data = get_data(token, days)
 
-wnd.mainloop()
-
-# Проверяем токен, вызывая с помощью него некоторые данные. Если токен неисправен появится соответствующая ошибка.
-try:
-    token_ver(token)
-except:
-    wnd_error = Tk()
-    wnd_error.title("Неисправный токен")
-    wnd_error.geometry("270x100")
-    lbl_error = Label(wnd_error, text='Введенный токен неисправен', font=("Times New Roman", 14))
-    lbl_error.place(x=10, y=10)
-    btn_error = Button(wnd_error, text="OK", font=("Times New Roman", 10), command=wnd_error.destroy, width=10,
-                       justify="center")
-    btn_error.place(x=90, y=50)
-
-# Загружаем данные.
-history_feature = filling_in_the_gaps(token, days)
-
-# Загружаем таргеты для исторических данных.
-history_target = download_history_target(token, days)
-
-# Соединяем данные, чтобы они полностью сходились по датам и размерам.
-data = pd.merge(history_feature, history_target, on='time', how='inner')
+print(data)
 
 # Создаем отдельную выборку из признаков.
-X = data.drop(['closing_data'], axis=1)
+x = data.drop(['closing_data'], axis=1)
 
 # Переводим колонку time в тип данных datetime.
-X['time'] = pd.to_datetime(X['time'])
+x['time'] = pd.to_datetime(x['time'])
 
 # Создаем новые признаки из времени.
-X['minute'] = X['time'].dt.minute
-X['hour'] = X['time'].dt.hour
-X['day_of_week'] = X['time'].dt.day_of_week
+x['minute'] = x['time'].dt.minute
+x['hour'] = x['time'].dt.hour
+x['day_of_week'] = x['time'].dt.day_of_week
 
 # Удаляем время из признаков.
-X=X.drop(['time'], axis=1)
+x = x.drop(['time'], axis=1)
 
 # Выборка таргетов отдельно.
-Y = data['closing_data']
+y = data['closing_data']
 
-model=learn_model(X, Y)
+# Обучаем и валидируем модель.
+model = learn_model(x, y)

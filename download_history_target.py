@@ -1,10 +1,12 @@
 import pandas as pd
 import datetime
-from tinkoff.invest import *
 from tinkoff.invest.schemas import CandleInterval
 import time
 from tkinter.ttk import *
 from tkinter import *
+from tinkoff.invest.retrying.sync.client import RetryingClient
+from tinkoff.invest.retrying.settings import *
+
 
 import warnings
 
@@ -15,10 +17,11 @@ def download_history_target(token: str, days: int) -> pd.DataFrame:
     # Создаем прогрессбар для загрузки исторических данных.
     tk = Tk()
     tk.title("Загрузка исторических данных")
+    tk.attributes('-toolwindow', True)
     progress = Progressbar(tk, orient=HORIZONTAL, maximum=days, value=0, length=500, mode='determinate')
     progress.grid(column=1, row=0)
 
-    # Фиксиеруем текущую дату.
+    # Фиксируем текущую дату.
     st = datetime.datetime.now()
     st = datetime.datetime(st.date().year, st.date().month, st.date().day, 0, 0, 0, 0)
 
@@ -26,16 +29,19 @@ def download_history_target(token: str, days: int) -> pd.DataFrame:
     firsty_data = pd.DataFrame(data={'time': [datetime.datetime(year=2000, month=1, day=1, hour=1, minute=1, second=1)],
                                      'closing_data': [-199]})
 
-    with Client(token) as client:
+    with RetryingClient(token=token, settings=RetryClientSettings()) as client:
         for day in range(1, days):
 
-            # Обновляем прогрессбар.
+            # Если дата выпадает на выходной день или на январские праздники, то такой день пропускается. Так как в этот день не ведутся торги.
+            if (st - datetime.timedelta(days=day)).isoweekday() > 5 or ((st - datetime.timedelta(days=day - 1)).month==1 and 1<(st - datetime.timedelta(days=day - 1)).day<=8):
+                progress['value'] = progress['value'] + 1
+                tk.update()
+                print(st - datetime.timedelta(days=days))
+                continue
+
+            # Обновляем прогресс бар.
             progress['value'] = progress['value'] + 1
             tk.update()
-
-            # Делаем остановку, в загрузке, чтобы следовать лимитной политике.
-            if day % 190 == 0:
-                time.sleep(60)
 
             # Делаем запрос данных за день.
             candleses = client.market_data.get_candles(
@@ -59,7 +65,7 @@ def download_history_target(token: str, days: int) -> pd.DataFrame:
                 pd.date_range(start=st - datetime.timedelta(days=day), end=st - datetime.timedelta(days=day - 1),
                               freq="T", tz="UTC"), columns=["time"])
 
-            # Присоеднияем данные о сделках к маленькому датафрейму.
+            # Присоединяем данные о сделках к маленькому датафрейму.
             times = pd.merge(times, data, how="outer", on="time")
 
             # Присоединяем полученные данные к предыдущим полученным данным.
@@ -90,9 +96,14 @@ def download_history_target(token: str, days: int) -> pd.DataFrame:
               'closing_data': -1})
     firsty_data = (pd.concat([firsty_data, timez], axis=0)).reset_index(drop=True)
 
-    # Создаем прогрессбар заполнения пропусков.
+    # Убираем прогресс бар.
+    progress.pack()
+    tk.destroy()
+
+    # Создаем прогресс бар заполнения пропусков.
     tk1 = Tk()
     tk1.title("Заполнение пропусков в исторических данных таргетах")
+    tk1.attributes('-toolwindow', True)
     progress1 = Progressbar(tk1, orient=HORIZONTAL, maximum=firsty_data.shape[0], value=0, length=500,
                             mode='determinate')
     progress1.grid(column=1, row=0)
@@ -100,7 +111,7 @@ def download_history_target(token: str, days: int) -> pd.DataFrame:
     # Итерируемся по строкам.
     for minute in range(firsty_data.shape[0]):
 
-        # Обновляем прогрессбар
+        # Обновляем прогресс бар
         progress1['value'] = progress1['value'] + 1
         tk1.update()
 
@@ -117,9 +128,9 @@ def download_history_target(token: str, days: int) -> pd.DataFrame:
     # Сортируем датафрейм по датам.
     firsty_data = firsty_data.sort_values(by='time', ascending=True)
 
-    # Убираем прогрессбар.
-    progress.pack()
-    tk.destroy()
+    # Убираем прогресс бар.
+    progress1.pack()
+    tk1.destroy()
 
     # Переводим колонку в нужный тип данных.
     firsty_data['time'] = pd.to_datetime(firsty_data['time'])

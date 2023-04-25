@@ -3,6 +3,8 @@ import datetime
 from tinkoff.invest import *
 from tinkoff.invest.schemas import CandleInterval
 from get_structure import get_structure
+from tinkoff.invest.retrying.sync.client import RetryingClient
+from tinkoff.invest.retrying.settings import *
 
 
 # Данная функция загружает исторические данные за 1 день.
@@ -15,7 +17,7 @@ def download_history_for_1_day(st: datetime.datetime, day: int, token: str) -> p
     structure = get_structure('TRUR')['items']
 
     for y in range(10):
-        with Client(token) as client:
+        with RetryingClient(token=token, settings=RetryClientSettings()) as client:
 
             # Проверяем и заменяем типы ценных бумаг, так как в библиотеке tinkoff.invest немного по другому пишутся типы ценных бумаг.
             if structure[y]['type'] == 'Stock':
@@ -30,7 +32,8 @@ def download_history_for_1_day(st: datetime.datetime, day: int, token: str) -> p
 
             # Итерируемся по найденным инструментам, и проверяем на соответствие того что есть в БПИФ на самом деле.
             for x in range(len(c.instruments)):
-                if c.instruments[x].instrument_type == structure[y]['type'] and c.instruments[x].name == structure[y]['name'] and \
+                if c.instruments[x].instrument_type == structure[y]['type'] and c.instruments[x].name == structure[y][
+                    'name'] and \
                         c.instruments[x].class_code != 'SMAL':
 
                     # Загружаем общие данные по инструменту.
