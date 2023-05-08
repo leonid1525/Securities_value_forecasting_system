@@ -6,6 +6,7 @@ import pandas as pd
 from token_verification import token_ver
 from download_history import download_history_data
 from download_history_target import download_history_target
+from get_structure import get_structure
 
 
 # Функция получения токена у пользователя и проверки его на корректность.
@@ -52,7 +53,7 @@ def get_token():
     btn1.place(x=500, y=350)
 
     lbl4 = Label(wnd,
-                 text='Введите целое число дней истории ниже. Если данные уже были сегодня загружены, то это поле можно пропустить.',
+                 text='Введите целое число дней истории ниже',
                  font=("Times New Roman", 14))
     lbl4.place(x=100, y=250)
 
@@ -81,8 +82,10 @@ def get_token():
 
 # Функция получения и сохранения актуальных данных.
 def get_data(token, days):
+    structure = get_structure('TRUR')['items']
+
     # Загружаем данные.
-    history_feature = download_history_data(token, days)
+    history_feature = download_history_data(token, days, structure)
 
     # Загружаем таргеты для исторических данных.
     history_target = download_history_target(token, days)

@@ -1,20 +1,22 @@
 import pandas as pd
 import datetime
-from tinkoff.invest import *
 from tinkoff.invest.schemas import CandleInterval
-from get_structure import get_structure
 from tinkoff.invest.retrying.sync.client import RetryingClient
 from tinkoff.invest.retrying.settings import *
+from CONSTANTC import GIGA
 
 
 # Данная функция загружает исторические данные за 1 день.
-def download_history_for_1_day(st: datetime.datetime, day: int, token: str) -> pd.DataFrame:
+def download_history_for_1_day(st: datetime.datetime, day: int, token: str, structure):
+
     # Создаем столбик из даты и времени с интервалом в 1 минуту.
     times = pd.DataFrame(pd.date_range(start=st - datetime.timedelta(days=1), end=st, freq="T", tz="UTC"),
                          columns=["time"])
 
-    # Делаем запрос на текущую структуру фонда.
-    structure = get_structure('TRUR')['items']
+    # Создаем список для хранения figi. FIGI - (англ.: Financial Instrument Global Identifier) — глобальный идентификатор финансового инструмента. 
+    # Представляет собой 12-символьный код из латинских букв и цифр, определяется как идентификатор ценной бумаги на торговой площадке (бирже), 
+    # которая является некоторым "источником цен".
+    list_figi = []
 
     for y in range(10):
         with RetryingClient(token=token, settings=RetryClientSettings()) as client:
@@ -43,14 +45,14 @@ def download_history_for_1_day(st: datetime.datetime, day: int, token: str) -> p
                                                                 interval=CandleInterval.CANDLE_INTERVAL_1_MIN)
 
                     # Формируем список значений цен значений.
-                    clossing_data = [x.close.units + x.close.nano / 1000000000 for x in first_data.candles]
+                    clossing_data = [x.close.units + x.close.nano / GIGA for x in first_data.candles]
 
                     # Формируем список времен.
                     time_data = [x.time for x in first_data.candles]
 
                     # Формируем таблицу.
                     data = pd.DataFrame(data={'time': time_data,
-                                              f'{y}': clossing_data})
+                                              f'{c.instruments[x].figi}': clossing_data})
 
                     # Едем дальше если таблица пуста.
                     if data.shape[0] == 0:
@@ -60,5 +62,35 @@ def download_history_for_1_day(st: datetime.datetime, day: int, token: str) -> p
                     else:
                         data['time'] = data["time"].dt.round("T")
                         times = pd.merge(times, data, how="outer", on="time")
+
+                        # Сохраняем figi.
+                        list_figi.append(c.instruments[x].figi)
                         break
-    return times
+
+    with RetryingClient(token=token, settings=RetryClientSettings()) as client:
+
+        fund_figi = client.instruments.find_instrument(query='Тинькофф Вечный портфель RUB').instruments[0].figi
+
+        # Загружаем общие данные по инструменту.
+        data_closing_invest_fund = client.market_data.get_candles(figi=fund_figi,
+                                                                  from_=st - datetime.timedelta(days=day),
+                                                                  to=st - datetime.timedelta(days=day - 1),
+                                                                  interval=CandleInterval.CANDLE_INTERVAL_1_MIN)
+
+        # Формируем список значений цен значений.
+        clossing_data_invest_fund = [x.close.units + x.close.nano / GIGA for x in data_closing_invest_fund.candles]
+
+        # Формируем список времен.
+        time_data_invest_fund = [x.time for x in data_closing_invest_fund.candles]
+
+        # Формируем таблицу.
+        data = pd.DataFrame(data={'time': time_data_invest_fund,
+                                  fund_figi: clossing_data_invest_fund})
+
+        data['time'] = pd.to_datetime(data['time'])
+        data['time'] = data["time"].dt.round("T")
+        times = pd.merge(times, data, how="outer", on="time")
+
+        list_figi.append(fund_figi)
+
+    return times, list_figi

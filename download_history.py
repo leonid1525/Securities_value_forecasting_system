@@ -1,6 +1,5 @@
 import pandas as pd
 import datetime
-import time
 from download_history_for_1_day import download_history_for_1_day
 from tkinter.ttk import *
 from tkinter import *
@@ -11,7 +10,7 @@ warnings.filterwarnings("ignore")
 
 
 # Функция загрузки исторических данных, для обучения модели
-def download_history_data(token: str, days: int):
+def download_history_data(token: str, days: int, structure):
     # Создаем прогресс бар.
     tk = Tk()
     tk.title("Загрузка исторических данных и заполнение пропусков")
@@ -19,7 +18,7 @@ def download_history_data(token: str, days: int):
     progress.grid(column=1, row=0)
 
     # Записываем текущее время и дату, после чего округляем до даты
-    st = datetime.datetime.now()
+    st = datetime.datetime.utcnow()
     st = datetime.datetime(st.date().year, st.date().month, st.date().day, 0, 0, 0, 0)
 
     # Создаем первичный датафрейм, к нему потом будем в цикле присоединять данные по дням. 
@@ -34,11 +33,14 @@ def download_history_data(token: str, days: int):
                                      '6': [-199],
                                      '7': [-199],
                                      '8': [-199],
-                                     '9': [-199]})
+                                     '9': [-199],
+                                     'close_invest_fund': [-199]})
 
     # Создаем список дней и разворачиваем его.
-    rang = range(1, days)
+    rang = list(range(1, days))
     rang = reversed(rang)
+
+    count = days
 
     # По каждому дню в году собираем данные и присоединяем к таблице.
     for day in rang:
@@ -57,7 +59,22 @@ def download_history_data(token: str, days: int):
         tk.update()
 
         # Загружаем данные по каждому дню и присоединяем их.
-        new_day = download_history_for_1_day(st=st, day=day, token=token)
+        new_day, list_figi = download_history_for_1_day(st=st, day=day, token=token, structure=structure)
+
+        if count == days:
+            firsty_data = firsty_data.rename(columns={'0': list_figi[0],
+                                                      '1': list_figi[1],
+                                                      '2': list_figi[2],
+                                                      '3': list_figi[3],
+                                                      '4': list_figi[4],
+                                                      '5': list_figi[5],
+                                                      '6': list_figi[6],
+                                                      '7': list_figi[7],
+                                                      '8': list_figi[8],
+                                                      '9': list_figi[9],
+                                                      'close_invest_fund': list_figi[10]})
+
+        count = count - 1
 
         # Заполняем пропуски нулями.
         new_day.fillna(-1, inplace=True)

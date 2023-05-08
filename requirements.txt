@@ -1,0 +1,5 @@
+tinkoff==0.1.1
+pandas==1.5.3
+sklearn==1.1.1
+hyperopt==0.2.7
+matplotlib==3.6.3

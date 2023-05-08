@@ -1,12 +1,11 @@
 import pandas as pd
 import datetime
 from tinkoff.invest.schemas import CandleInterval
-import time
 from tkinter.ttk import *
 from tkinter import *
 from tinkoff.invest.retrying.sync.client import RetryingClient
 from tinkoff.invest.retrying.settings import *
-
+from CONSTANTC import GIGA
 
 import warnings
 
@@ -14,6 +13,7 @@ warnings.filterwarnings("ignore")
 
 
 def download_history_target(token: str, days: int) -> pd.DataFrame:
+
     # Создаем прогрессбар для загрузки исторических данных.
     tk = Tk()
     tk.title("Загрузка исторических данных")
@@ -22,7 +22,7 @@ def download_history_target(token: str, days: int) -> pd.DataFrame:
     progress.grid(column=1, row=0)
 
     # Фиксируем текущую дату.
-    st = datetime.datetime.now()
+    st = datetime.datetime.utcnow()
     st = datetime.datetime(st.date().year, st.date().month, st.date().day, 0, 0, 0, 0)
 
     # Создаем первичный датафрейм. К нему потом подсоединим остальные данные.
@@ -33,7 +33,9 @@ def download_history_target(token: str, days: int) -> pd.DataFrame:
         for day in range(1, days):
 
             # Если дата выпадает на выходной день или на январские праздники, то такой день пропускается. Так как в этот день не ведутся торги.
-            if (st - datetime.timedelta(days=day)).isoweekday() > 5 or ((st - datetime.timedelta(days=day - 1)).month==1 and 1<(st - datetime.timedelta(days=day - 1)).day<=8):
+            if (st - datetime.timedelta(days=day)).isoweekday() > 5 or (
+                    (st - datetime.timedelta(days=day - 1)).month == 1 and 1 < (
+                    st - datetime.timedelta(days=day - 1)).day <= 8):
                 progress['value'] = progress['value'] + 1
                 tk.update()
                 print(st - datetime.timedelta(days=days))
@@ -51,7 +53,7 @@ def download_history_target(token: str, days: int) -> pd.DataFrame:
                 interval=CandleInterval.CANDLE_INTERVAL_1_MIN)
 
             # Создаем список с данными цен закрытия.
-            clossing_data = [x.close.units + x.close.nano / 1000000000 for x in candleses.candles]
+            clossing_data = [x.close.units + x.close.nano / GIGA for x in candleses.candles]
 
             # Формируем список времен.
             time_data = [x.time for x in candleses.candles]

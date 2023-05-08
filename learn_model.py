@@ -7,7 +7,7 @@ from tkinter.ttk import *
 
 
 # Функция подбора параметров и обучения модели случайного леса
-def learn_model(X: pd.DataFrame, Y: pd.DataFrame):
+def learn_model(x: pd.DataFrame, y: pd.DataFrame) -> RandomForestRegressor:
     # Функция получение порога ошибки и типа ошибки.
     def input_loss():
         global thr_loss
@@ -28,7 +28,7 @@ def learn_model(X: pd.DataFrame, Y: pd.DataFrame):
     lbl0.place(x=10, y=10)
 
     errors = ['Среднее абсолютное отклонение', 'Медианное абсолютное отклонение', 'Максимальное абсолютное отклонение']
-    combobox = Combobox(window_input_loss, values=errors, width=50, font=("Times New Roman", 14))
+    combobox = Combobox(window_input_loss, values=errors, width=48, font=("Times New Roman", 14))
     combobox.place(x=10, y=100)
 
     txt0 = Entry(window_input_loss, width=50, font=("Times New Roman", 14))
@@ -40,14 +40,14 @@ def learn_model(X: pd.DataFrame, Y: pd.DataFrame):
     window_input_loss.mainloop()
 
     # Делим загруженные данные на обучающие и тестовые.
-    X_train = X.head(X.shape[0] - 60 * 24 * 7)
-    Y_train = Y.head(Y.shape[0] - 60 * 24 * 7)
-    X_test = X.tail(60 * 24 * 7)
-    Y_test = Y.tail(60 * 24 * 7)
+    X_train = x.head(x.shape[0] - 60 * 9 * 3)
+    Y_train = y.head(y.shape[0] - 60 * 9 * 3)
+    X_test = x.tail(60 * 9 * 3)
+    Y_test = y.tail(60 * 9 * 3)
 
     # Определяем признаковое пространство.
     params = {
-        'n_estimators': hp.randint("n_estimators", 1, 1000),
+        'n_estimators': hp.randint("n_estimators", 1, 200),
         'criterion': hp.choice('criterion', options=['squared_error', 'friedman_mse', 'absolute_error', 'poisson']),
         'max_depth': hp.randint("max_depth", 1, 10000),
         'max_features': hp.choice('max_features', options=['auto', 'sqrt', 'log2'])}
@@ -106,6 +106,6 @@ def learn_model(X: pd.DataFrame, Y: pd.DataFrame):
 
     # Обучаем модель с лучшими параметрами.
     model = RandomForestRegressor(**trials.best_trial['result']['params'])
-    model.fit(X, Y)
+    model.fit(x, y)
 
     return model

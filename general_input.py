@@ -2,18 +2,18 @@ import sys
 from tkinter import *
 import datetime
 import pandas as pd
-import os.path
 import warnings
+import os
 
 from learn_model import learn_model
 from get_data import *
+from predict import predict
 
 warnings.filterwarnings("ignore")
 
 # Проверяем текущее время. Если в данный момент не работает московская биржа, то появится соответствующее окно и работа приложения не будет продолжена.
 now = datetime.datetime.now()
-if ((now.hour < 9 or now.hour >= 18) and now.isoweekday() < 5) or (
-        now.isoweekday() == 5 and now.time() > datetime.time(16, 45, 0, 0)):
+if (now.hour < 9 and now.minute < 50) or (now.hour >= 23 and now.minute >= 58):
     wnd_closing = Tk()
     wnd_closing.title("Биржа закрыта в данное время")
     wnd_closing.geometry("280x100")
@@ -35,7 +35,7 @@ if days.isdigit():
 # Проверяем наличие файла с загруженными файлами.
 if os.path.isfile('safe_data.csv'):
 
-    # Читаем файл, чтобы потом проверить его на корректность и актульность.
+    # Читаем файл, чтобы потом проверить его на корректность и актуальность.
     data = pd.read_csv('safe_data.csv', index_col=False)
 
     # Проверяем чтобы первым столбцом шло время и дата.
@@ -44,11 +44,11 @@ if os.path.isfile('safe_data.csv'):
         # Проверяем чтобы последняя дата и время были вчера.
         data['time'] = pd.to_datetime(data['time'])
         data = data.sort_values(by='time', ascending=True)
-        tail_value = data.shape[0] - 1
-        tail_date = datetime.datetime.now().date() - datetime.timedelta(days=1)
-        if data.loc[tail_value, 'time'] < tail_date:
+        tail_date = datetime.datetime.now().date()
+        print(tail_date)
+        if data.loc[data.shape[0] - 1, 'time'] != tail_date:
             # Если дата и время более старые чем нужно, то загружаем актуальные данные.
-            data = get_data()
+            data = get_data(token, days)
     else:
 
         # Если файл некорректный, то загружаем актуальные данные.
@@ -80,3 +80,5 @@ y = data['closing_data']
 
 # Обучаем и валидируем модель.
 model = learn_model(x, y)
+
+predict(model, token, x)
