@@ -75,11 +75,10 @@ def download_history_target(token: str, days: int) -> pd.DataFrame:
 
             print(day)
 
-    # Заполняем пропуски аномальным значением, чтобы потом особым способом поменять аномальные значения на нужные.
-    firsty_data.fillna(-1, inplace=True)
+    # Заполняем пропуски.
+    firsty_data=firsty_data.fillna(method='ffill').fillna(method='backfill')
 
-    # Убираем строку из первичного датафрейма. Там значение -199.
-    firsty_data = firsty_data[firsty_data['closing_data'] > -2]
+    firsty_data=firsty_data[firsty_data['closing_data'] > 0]
 
     # Сортируем датафрейм и восстанавливаем индексы.
     firsty_data = firsty_data.sort_values(by='time', ascending=True)
@@ -102,37 +101,10 @@ def download_history_target(token: str, days: int) -> pd.DataFrame:
     progress.pack()
     tk.destroy()
 
-    # Создаем прогресс бар заполнения пропусков.
-    tk1 = Tk()
-    tk1.title("Заполнение пропусков в исторических данных таргетах")
-    tk1.attributes('-toolwindow', True)
-    progress1 = Progressbar(tk1, orient=HORIZONTAL, maximum=firsty_data.shape[0], value=0, length=500,
-                            mode='determinate')
-    progress1.grid(column=1, row=0)
-
-    # Итерируемся по строкам.
-    for minute in range(firsty_data.shape[0]):
-
-        # Обновляем прогресс бар
-        progress1['value'] = progress1['value'] + 1
-        tk1.update()
-
-        # Для первой строки, если она заполнена аномальным значением -1, берем первое нормальное значение.
-        if firsty_data.loc[minute, 'closing_data'] == -1 and minute == 0:
-            first_value = (firsty_data.loc[firsty_data['closing_data'] > -1, 'closing_data']).reset_index(drop=True)
-            firsty_data.loc[minute, 'closing_data'] = first_value[0]
-            continue
-
-        # Для последующих аномальных значений, берем значение выше.
-        if firsty_data.loc[minute, 'closing_data'] == -1:
-            firsty_data.loc[minute, 'closing_data'] = firsty_data.loc[minute - 1, 'closing_data']
+    firsty_data=firsty_data[firsty_data['closing_data'] > 0]
 
     # Сортируем датафрейм по датам.
     firsty_data = firsty_data.sort_values(by='time', ascending=True)
-
-    # Убираем прогресс бар.
-    progress1.pack()
-    tk1.destroy()
 
     # Переводим колонку в нужный тип данных.
     firsty_data['time'] = pd.to_datetime(firsty_data['time'])

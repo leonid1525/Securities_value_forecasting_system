@@ -76,31 +76,8 @@ def download_history_data(token: str, days: int, structure):
 
         count = count - 1
 
-        # Заполняем пропуски нулями.
-        new_day.fillna(-1, inplace=True)
-
-        # Делаем список колонок и удаляем оттуда время и дату.
-        column = new_day.columns.to_list()
-        del column[0]
-
-        # Итерируемся по ячейкам, заполняя пропуски особым образом.
-        for x in column:
-            for y in range(0, new_day.shape[0]):
-                if y == 0 and new_day.loc[y, x] == -1:
-
-                    # Для первой строки с пропуском, залезаем в предыдущий день, и берем последнее значение столбика с таким же названием.
-                    # Проверяем на нормальность, так как при заполнении пропусков в первый день (он загружается первым), из предыдущего дня покажется аномальное значение.
-                    # Если значение оказалось аномальным, то берем первое нормальное непустое значение из датафрейма, в котором заполняем пропуски. 
-                    tail_value = firsty_data.tail(1)
-                    tail_value = tail_value.reset_index(drop=True)
-                    if tail_value.loc[0, x] == -199:
-                        first_value = (new_day.loc[new_day[x] > -1, x]).reset_index(drop=True)
-                        new_day.loc[y, x] = first_value[0]
-                    else:
-                        new_day.loc[y, x] = tail_value.loc[0, x]
-                    continue
-                if new_day.loc[y, x] == -1:
-                    new_day.loc[y, x] = new_day.loc[y - 1, x]
+        # Заполняем пропуски.
+        new_day=new_day.fillna(method='ffill').fillna(method='backfill')
 
         # Присоединяем к предыдущим дням, заполненный текущий день.
         firsty_data = (pd.concat([firsty_data, new_day], axis=0)).reset_index(drop=True)
